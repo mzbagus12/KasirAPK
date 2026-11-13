@@ -1,0 +1,68 @@
+package com.apkkasir
+
+import android.os.SystemClock
+import android.util.Log
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performClick
+import androidx.room.withTransaction
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.apkkasir.data.AppContainer
+import com.apkkasir.data.PaymentMethod
+import com.apkkasir.data.Role
+import com.apkkasir.data.Sale
+import com.apkkasir.data.SaleStatus
+import com.apkkasir.reports.Jakarta
+import com.apkkasir.reports.PeriodKind
+import com.apkkasir.ui.KasirApp
+import java.time.LocalDate
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class ReportPerformanceTest {
+    @get:Rule val compose = createComposeRule()
+
+    @Test fun measureDailyScreenAndMonthlyPdfAtOneThousandSales() {
+        KasirFixture().use { fixture ->
+            val app = AppContainer(fixture.context, fixture.database)
+            runBlocking {
+                app.accounts.setup("pemilik", "pemilik123", "kasir", "kasir1234")
+                app.accounts.login("pemilik", "pemilik123")
+                val cashier = checkNotNull(fixture.database.accounts().byRole(Role.CASHIER))
+                val now = System.currentTimeMillis()
+                fixture.database.withTransaction {
+                    repeat(1000) { index ->
+                        fixture.database.sales().insert(
+                            Sale(
+                                billNumber = "UJI-$index", cashierId = cashier.id,
+                                createdAt = now, total = 33_000, status = SaleStatus.LUNAS,
+                                method = PaymentMethod.TUNAI, cash = 33_000, receiptNumber = "NOTA-$index",
+                                confirmedAt = now, confirmedBy = cashier.id,
+                            )
+                        )
+                    }
+                }
+            }
+            compose.setContent { KasirApp(app) }
+            val button = compose.onNodeWithText("Laporan hari ini").performScrollTo()
+            val tableStart = SystemClock.elapsedRealtime()
+            button.performClick()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithText("1000 transaksi lunas").fetchSemanticsNodes().isNotEmpty()
+            }
+            val tableMs = SystemClock.elapsedRealtime() - tableStart
+            val pdfStart = SystemClock.elapsedRealtime()
+            runBlocking { app.archives.create(PeriodKind.MONTHLY, LocalDate.now(Jakarta)) }
+            val pdfMs = SystemClock.elapsedRealtime() - pdfStart
+            Log.i("KasirPerformance", "1000 transaksi: tabel ${tableMs} ms, PDF ${pdfMs} ms")
+            assertTrue("Tabel: ${tableMs} ms", tableMs <= 2_000)
+            assertTrue("PDF: ${pdfMs} ms", pdfMs <= 10_000)
+        }
+    }
+}
