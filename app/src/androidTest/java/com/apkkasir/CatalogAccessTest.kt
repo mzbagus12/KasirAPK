@@ -9,7 +9,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class CatalogAccessTest {
-    @Test fun cashierReadsButCannotChangeCatalog() = runBlocking {
+    @Test fun onlySignedInCashierCanChangeCatalog() = runBlocking {
         KasirFixture().use { f ->
             f.setup()
             val product = f.item()
@@ -17,7 +17,9 @@ class CatalogAccessTest {
             f.products.changePrice(product, 34_000)
             f.cashier()
             assertEquals(34_000L, f.products.products.first().single().price)
-            fails { f.products.changePrice(product, 99_000) }
+            f.products.changePrice(product, 99_000)
+            f.session.exit()
+            fails { f.products.changePrice(product, 50_000) }
             fails { f.products.add("Teh", 5_000) }
         }
     }

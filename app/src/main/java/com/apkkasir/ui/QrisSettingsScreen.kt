@@ -18,6 +18,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.apkkasir.data.AppContainer
+import com.apkkasir.data.AccountSession
+import com.apkkasir.data.Role
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -29,15 +31,21 @@ internal fun QrisSettingsScreen(app: AppContainer, back: () -> Unit) {
     var active by remember { mutableStateOf<File?>(null) }
     var selected by remember { mutableStateOf<Uri?>(null) }
     var preview by remember { mutableStateOf<Bitmap?>(null) }
+    var pendingSession by remember { mutableStateOf<AccountSession?>(null) }
+    var previewSession by remember { mutableStateOf<AccountSession?>(null) }
     LaunchedEffect(app) { active = app.qris.current() }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) action.run {
-            app.session.requireRole(com.apkkasir.data.Role.ADMIN)
+        val actor = pendingSession
+        pendingSession = null
+        if (uri != null && actor != null && app.session.account.value === actor) action.run {
+            app.session.checkActive(actor)
             selected = null
             preview = null
             val bitmap = withContext(Dispatchers.IO) {
                 decodePreview { context.contentResolver.openInputStream(uri) }
             } ?: error("Gambar tidak dapat dibaca.")
+            app.session.checkActive(actor)
+            previewSession = actor
             selected = uri
             preview = bitmap
         }
@@ -48,7 +56,8 @@ internal fun QrisSettingsScreen(app: AppContainer, back: () -> Unit) {
             Text("QRIS aktif", style = MaterialTheme.typography.titleMedium)
             QrisFileImage(active)
         }
-        OutlinedButton(enabled = !action.busy, onClick = {
+        OutlinedButton(enabled = !action.busy && pendingSession == null, onClick = {
+            pendingSession = app.session.requireRole(Role.CASHIER)
             picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }) { Text("Pilih gambar QRIS") }
         preview?.let {
@@ -57,8 +66,9 @@ internal fun QrisSettingsScreen(app: AppContainer, back: () -> Unit) {
             Text("Pastikan gambar berasal dari BRI Merchant toko.")
             Button(enabled = !action.busy, onClick = {
                 val uri = selected ?: return@Button
+                val actor = previewSession ?: return@Button
                 action.run {
-                    active = app.qris.save(uri)
+                    active = app.qris.save(uri, actor)
                     selected = null
                     preview = null
                 }

@@ -23,15 +23,17 @@ data class ReportSnapshot(val rows: List<Sale>) {
 }
 
 class SalesReport(private val database: KasirDatabase, private val session: LocalSession) {
-    fun observe(period: ReportPeriod) = database.sales()
-        .observeWithin(period.startMillis, period.endMillis)
-        .map {
-            session.requireRole(Role.ADMIN)
+    fun observe(period: ReportPeriod): kotlinx.coroutines.flow.Flow<ReportSnapshot> {
+        val actor = session.requireRole(Role.CASHIER)
+        return database.sales().observeWithin(period.startMillis, period.endMillis).map {
+            session.checkActive(actor)
             ReportSnapshot(it)
         }
+    }
 
     suspend fun snapshot(period: ReportPeriod): ReportSnapshot {
-        session.requireRole(Role.ADMIN)
+        val actor = session.requireRole(Role.CASHIER)
         return ReportSnapshot(database.sales().within(period.startMillis, period.endMillis))
+            .also { session.checkActive(actor) }
     }
 }

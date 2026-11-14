@@ -7,6 +7,7 @@ import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import com.apkkasir.data.LocalSession
+import com.apkkasir.data.AccountSession
 import com.apkkasir.data.ReportDocument
 import com.apkkasir.data.ReportDocumentDao
 import com.apkkasir.data.Role
@@ -33,8 +34,7 @@ class ReportArchive(
 
     suspend fun documents(): List<ReportDocument> = exclusive { dao.all() }
 
-    suspend fun create(kind: PeriodKind, date: LocalDate): ReportDocument = exclusive {
-        val actor = session.requireRole(Role.ADMIN)
+    suspend fun create(kind: PeriodKind, date: LocalDate): ReportDocument = exclusive { actor ->
         val period = ReportPeriod.of(kind, date)
         val id = UUID.randomUUID().toString()
         val created = System.currentTimeMillis()
@@ -80,14 +80,14 @@ class ReportArchive(
         }
     }
 
-    suspend fun export(id: String, uri: Uri) = exclusive {
+    suspend fun export(id: String, uri: Uri, actor: AccountSession = session.requireRole(Role.CASHIER)) = exclusive(actor) {
         val source = file(id)
+        session.checkActive(actor)
         val output = context.contentResolver.openOutputStream(uri, "wt") ?: error("Lokasi ekspor tidak tersedia.")
         output.use { target -> source.inputStream().use { it.copyTo(target) } }
     }
 
-    suspend fun delete(id: String) = exclusive {
-        val actor = session.requireRole(Role.ADMIN)
+    suspend fun delete(id: String) = exclusive { actor ->
         val document = dao.get(id) ?: return@exclusive
         val file = File(directory, document.fileName)
         try {
@@ -109,14 +109,16 @@ class ReportArchive(
         }
     }
 
-    private suspend fun <T> exclusive(block: suspend () -> T): T {
-        val actor = session.requireRole(Role.ADMIN)
+    private suspend fun <T> exclusive(
+        actor: AccountSession = session.requireRole(Role.CASHIER),
+        block: suspend (AccountSession) -> T,
+    ): T {
         return mutex.withLock {
             withContext(Dispatchers.IO) {
                 session.checkActive(actor)
                 if (!reconciled) reconcile()
                 session.checkActive(actor)
-                block()
+                block(actor)
             }
         }
     }

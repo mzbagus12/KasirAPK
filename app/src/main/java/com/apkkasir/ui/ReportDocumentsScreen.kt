@@ -6,13 +6,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.apkkasir.data.AppContainer
+import com.apkkasir.data.AccountSession
 import com.apkkasir.data.ReportDocument
+import com.apkkasir.data.Role
 import com.apkkasir.reports.*
 import java.time.LocalDate
 
@@ -25,14 +26,14 @@ internal fun ReportDocumentsScreen(app: AppContainer, back: () -> Unit) {
     var documents by remember { mutableStateOf<List<ReportDocument>?>(null) }
     var viewer by remember { mutableStateOf<ReportDocument?>(null) }
     var deleting by remember { mutableStateOf<ReportDocument?>(null) }
-    var exporting by rememberSaveable { mutableStateOf<String?>(null) }
+    var exporting by remember { mutableStateOf<Pair<String, AccountSession>?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(app) { action.run { documents = app.archives.documents() } }
     val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
-        val id = exporting
+        val request = exporting
         exporting = null
-        if (id != null && uri != null) action.run {
-            app.archives.export(id, uri)
+        if (request != null && uri != null && app.session.account.value === request.second) action.run {
+            app.archives.export(request.first, uri, request.second)
             message = "Salinan PDF disimpan."
         }
     }
@@ -80,7 +81,7 @@ internal fun ReportDocumentsScreen(app: AppContainer, back: () -> Unit) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         TextButton(enabled = !action.busy, onClick = { viewer = document }) { Text("Buka") }
                         TextButton(enabled = !action.busy && exporting == null, onClick = {
-                            exporting = document.id
+                            exporting = document.id to app.session.requireRole(Role.CASHIER)
                             exporter.launch(document.displayName)
                         }) { Text("Unduh") }
                         TextButton(enabled = !action.busy, onClick = { deleting = document }) { Text("Hapus") }

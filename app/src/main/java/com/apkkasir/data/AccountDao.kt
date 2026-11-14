@@ -7,8 +7,8 @@ import androidx.room.Update
 
 @Dao
 interface AccountDao {
-    @Query("SELECT * FROM User WHERE username = :username")
-    suspend fun byName(username: String): User?
+    @Query("SELECT * FROM User WHERE username = :username AND role = 'CASHIER'")
+    suspend fun cashierByName(username: String): User?
 
     @Query("SELECT * FROM User WHERE role = :role")
     suspend fun byRole(role: Role): User?

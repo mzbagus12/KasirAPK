@@ -55,7 +55,7 @@ internal fun CheckoutScreen(app: AppContainer, id: Long?, back: () -> Unit, onRe
                 FilterChip(model.method == PaymentMethod.QRIS, { model.select(PaymentMethod.QRIS) },
                     { Text("QRIS") }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), enabled = !model.busy && qris != null)
             }
-            if (qris == null) Text("QRIS belum tersedia. Minta admin memasang gambar QRIS toko.")
+            if (qris == null) Text("QRIS belum tersedia. Pasang gambar dari menu QRIS toko.")
             when (model.method) {
                 PaymentMethod.TUNAI -> {
                     MoneyField("Uang diterima", model.cashText, model::cash)
@@ -112,7 +112,7 @@ private fun CartScreen(app: AppContainer, model: CheckoutViewModel, back: () -> 
     }.getOrNull()
     Page("Buat tagihan", back) {
         SummaryCard("Total keranjang", total?.let(::formatRupiah) ?: "Nominal melebihi batas")
-        if (products.isEmpty()) Text("Belum ada barang. Minta admin menambahkan barang.")
+        if (products.isEmpty()) Text("Belum ada barang. Tambahkan barang dari menu Barang.")
         products.forEach { product ->
             val count = cart[product.id] ?: 0
             OutlinedCard(Modifier.fillMaxWidth()) {

@@ -1,17 +1,33 @@
 package com.apkkasir.data
 
-class ProductStore(private val dao: ProductDao, private val session: LocalSession) {
-    val products = dao.observe()
+import androidx.room.withTransaction
+import kotlinx.coroutines.flow.flow
+
+class ProductStore(private val database: KasirDatabase, private val session: LocalSession) {
+    private val dao = database.products()
+    val products = flow {
+        val actor = session.requireRole(Role.CASHIER)
+        dao.observe().collect { rows ->
+            session.checkActive(actor)
+            emit(rows)
+        }
+    }
 
     suspend fun add(name: String, price: Long) {
-        session.requireRole(Role.ADMIN)
+        val actor = session.requireRole(Role.CASHIER)
         require(name.isNotBlank() && price > 0) { "Isi nama barang dan harga lebih dari nol." }
-        dao.insert(Product(name = name.trim(), price = price))
+        database.withTransaction {
+            session.checkActive(actor)
+            dao.insert(Product(name = name.trim(), price = price))
+        }
     }
 
     suspend fun changePrice(id: Long, price: Long) {
-        session.requireRole(Role.ADMIN)
+        val actor = session.requireRole(Role.CASHIER)
         require(price > 0) { "Harga harus lebih dari nol." }
-        check(dao.changePrice(id, price) == 1) { "Barang tidak ditemukan." }
+        database.withTransaction {
+            session.checkActive(actor)
+            check(dao.changePrice(id, price) == 1) { "Barang tidak ditemukan." }
+        }
     }
 }

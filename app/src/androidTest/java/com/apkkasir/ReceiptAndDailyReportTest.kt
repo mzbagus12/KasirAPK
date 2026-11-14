@@ -32,7 +32,7 @@ class ReceiptAndDailyReportTest {
             f.checkout.updateDraft(bill.id, PaymentMethod.QRIS, null)
             val receipt = f.checkout.confirm(bill.id, PaymentMethod.QRIS, null)
             assertEquals(PaymentMethod.QRIS, receipt.sale.method)
-            f.admin()
+            f.cashier()
             assertEquals(receipt.sale, f.report.snapshot(day).rows.single())
         }
     }
@@ -45,7 +45,7 @@ class ReceiptAndDailyReportTest {
             f.now = day.startMillis - 1
             f.cashier()
             val sale = f.checkout.create(mapOf(product to 1))
-            f.admin()
+            f.cashier()
             f.products.changePrice(product, 75_000)
             assertEquals(0, f.report.snapshot(day).count)
             f.cashier()
@@ -53,7 +53,7 @@ class ReceiptAndDailyReportTest {
             f.checkout.updateDraft(sale.id, PaymentMethod.TUNAI, 50_000)
             val receipt = f.checkout.confirm(sale.id, PaymentMethod.TUNAI, 50_000)
             assertEquals(33_000L, receipt.lines.single().unitPrice)
-            f.admin()
+            f.cashier()
             assertEquals(receipt.sale.receiptNumber, f.report.snapshot(day).rows.single().receiptNumber)
             assertEquals("33000", f.report.snapshot(day).total.toString())
             f.corrections.apply(sale.id, CorrectionKind.CANCEL, "Keliru")

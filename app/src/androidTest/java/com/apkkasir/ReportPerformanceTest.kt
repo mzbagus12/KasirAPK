@@ -32,8 +32,8 @@ class ReportPerformanceTest {
         KasirFixture().use { fixture ->
             val app = AppContainer(fixture.context, fixture.database)
             runBlocking {
-                app.accounts.setup("pemilik", "pemilik123", "kasir", "kasir1234")
-                app.accounts.login("pemilik", "pemilik123")
+                app.accounts.setup("kasir", "kasir1234")
+                app.accounts.login("kasir", "kasir1234")
                 val cashier = checkNotNull(fixture.database.accounts().byRole(Role.CASHIER))
                 val now = System.currentTimeMillis()
                 fixture.database.withTransaction {

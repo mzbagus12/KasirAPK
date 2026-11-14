@@ -8,52 +8,53 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.apkkasir.data.AppContainer
+import com.apkkasir.data.StoreOpening
+import com.apkkasir.data.StoreReadiness
 
 @Composable
 internal fun AccountScreen(app: AppContainer) {
-    var configured by remember { mutableStateOf<Boolean?>(null) }
+    var opening by remember { mutableStateOf<StoreOpening?>(null) }
     var recovering by remember { mutableStateOf(false) }
     var code by remember { mutableStateOf<String?>(null) }
-    var admin by remember { mutableStateOf("") }
     var cashier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var cashierPassword by remember { mutableStateOf("") }
     var recoveryInput by remember { mutableStateOf("") }
     val action = rememberAction()
-    LaunchedEffect(app) { action.run { configured = app.accounts.isConfigured() } }
+    LaunchedEffect(app) { opening = app.inspectStore() }
     Page(when {
         code != null -> "Kode pemulihan"
-        configured == false -> "Siapkan toko"
-        recovering -> "Pulihkan akun admin"
+        opening?.readiness == StoreReadiness.EMPTY -> "Siapkan toko"
+        opening?.readiness == StoreReadiness.HELD -> "Pembaruan ditahan"
+        recovering -> "Pulihkan akun kasir"
         else -> "Masuk ke Kasir Toko"
     }, form = true) {
         when {
             code != null -> RecoveryCode(code.orEmpty()) { code = null }
-            configured == null -> {
-                if (action.busy) CircularProgressIndicator()
-                else Button(onClick = { action.run { configured = app.accounts.isConfigured() } }) { Text("Coba lagi") }
+            opening == null -> CircularProgressIndicator()
+            opening?.readiness == StoreReadiness.HELD -> Text(opening?.message.orEmpty())
+            opening?.readiness == StoreReadiness.RETRY -> {
+                Text(opening?.message.orEmpty())
+                Button(enabled = !action.busy, onClick = {
+                    action.run { opening = app.inspectStore() }
+                }) { Text("Coba lagi") }
             }
-            configured == false -> {
-                Text("Buat akun admin dan satu akun kasir di HP ini.")
-                AccountName("Nama masuk admin", admin) { admin = it }
-                PasswordField("Kata sandi admin", password) { password = it }
+            opening?.readiness == StoreReadiness.EMPTY -> {
                 AccountName("Nama masuk kasir", cashier) { cashier = it }
-                PasswordField("Kata sandi kasir", cashierPassword) { cashierPassword = it }
+                PasswordField("Kata sandi kasir", password) { password = it }
                 Button(enabled = !action.busy, modifier = Modifier.fillMaxWidth(), onClick = {
                     action.run {
-                        code = app.accounts.setup(admin, password, cashier, cashierPassword)
-                        configured = true
+                        code = app.accounts.setup(cashier, password)
+                        opening = StoreOpening(StoreReadiness.READY)
                         password = ""
-                        cashierPassword = ""
                     }
                 }) { Text("Simpan akun") }
             }
             recovering -> {
                 PasswordField("Kode pemulihan", recoveryInput) { recoveryInput = it }
-                PasswordField("Kata sandi admin baru", password) { password = it }
+                PasswordField("Kata sandi kasir baru", password) { password = it }
                 Button(enabled = !action.busy, modifier = Modifier.fillMaxWidth(), onClick = {
                     action.run {
-                        code = app.accounts.recoverAdmin(recoveryInput, password)
+                        code = app.accounts.recoverCashier(recoveryInput, password)
                         recovering = false
                         password = ""
                         recoveryInput = ""
@@ -67,20 +68,20 @@ internal fun AccountScreen(app: AppContainer) {
                 }) { Text("Kembali ke masuk") }
             }
             else -> {
-                AccountName("Nama masuk", admin) { admin = it }
+                AccountName("Nama masuk", cashier) { cashier = it }
                 PasswordField("Kata sandi", password) { password = it }
                 Button(enabled = !action.busy, modifier = Modifier.fillMaxWidth(),
-                    onClick = { action.run { app.accounts.login(admin, password) } }) {
+                    onClick = { action.run { app.accounts.login(cashier, password) } }) {
                     Text("Masuk")
                 }
                 TextButton(enabled = !action.busy, onClick = {
                     recovering = true
                     password = ""
                     action.error = null
-                }) { Text("Lupa kata sandi admin") }
+                }) { Text("Lupa kata sandi") }
             }
         }
-        if (action.busy && configured != null) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (action.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         ErrorText(action.error)
     }
 }
@@ -88,28 +89,31 @@ internal fun AccountScreen(app: AppContainer) {
 @Composable
 internal fun AccessSettingsScreen(app: AppContainer, back: () -> Unit) {
     var cashierPassword by remember { mutableStateOf("") }
-    var adminPassword by remember { mutableStateOf("") }
+    var currentPassword by remember { mutableStateOf("") }
+    var recoveryPassword by remember { mutableStateOf("") }
     var code by remember { mutableStateOf<String?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     val action = rememberAction()
     Page("Akun dan pemulihan", back) {
-        Text("Reset akses kasir", style = MaterialTheme.typography.titleMedium)
+        Text("Ganti kata sandi", style = MaterialTheme.typography.titleMedium)
+        PasswordField("Kata sandi saat ini", currentPassword) { currentPassword = it }
         PasswordField("Kata sandi kasir baru", cashierPassword) { cashierPassword = it }
         Button(enabled = !action.busy, onClick = {
             action.run {
-                app.accounts.resetCashier(cashierPassword)
+                app.accounts.changePassword(currentPassword, cashierPassword)
+                currentPassword = ""
                 cashierPassword = ""
                 message = "Kata sandi kasir diperbarui."
             }
         }) { Text("Simpan kata sandi kasir") }
         HorizontalDivider()
-        Text("Kode pemulihan admin", style = MaterialTheme.typography.titleMedium)
+        Text("Kode pemulihan", style = MaterialTheme.typography.titleMedium)
         Text("Membuat kode baru menonaktifkan kode lama.")
-        PasswordField("Kata sandi admin saat ini", adminPassword) { adminPassword = it }
+        PasswordField("Kata sandi untuk kode pemulihan", recoveryPassword) { recoveryPassword = it }
         Button(enabled = !action.busy, onClick = {
             action.run {
-                code = app.accounts.rotateCode(adminPassword)
-                adminPassword = ""
+                code = app.accounts.rotateCode(recoveryPassword)
+                recoveryPassword = ""
             }
         }) { Text("Buat kode pemulihan baru") }
         code?.let { RecoveryCode(it) { code = null } }

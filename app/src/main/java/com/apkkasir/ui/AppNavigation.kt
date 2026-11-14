@@ -23,7 +23,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.apkkasir.data.AppContainer
-import com.apkkasir.data.Role
 import com.apkkasir.R
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -85,63 +84,55 @@ fun KasirApp(app: AppContainer) {
                     val back = { nav.popBackStack(); Unit }
                     NavHost(nav, startDestination = "home") {
                         composable("home") {
-                            Page(if (current.role == Role.ADMIN) "Admin toko" else "Kasir", action = {
+                            Page("Kasir", action = {
                                 TextButton(onClick = app.session::exit) { Text("Keluar") }
                             }) {
                                 Text("Masuk sebagai ${current.username}", style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                if (current.role == Role.ADMIN) {
-                                    MenuItem("Laporan hari ini", "Lihat total dan transaksi penjualan", R.drawable.ic_kasir_report,
-                                        featured = true) { nav.navigate("daily") }
-                                    SectionTitle("Penjualan")
-                                    MenuPair(
-                                        MenuEntry("Barang", "Tambah barang dan ubah harga", R.drawable.ic_kasir_box, "catalog"),
-                                        MenuEntry("Dokumen PDF", "Buat dan buka arsip laporan", R.drawable.ic_kasir_document, "documents"),
-                                    ) { nav.navigate(it) }
-                                    MenuItem("Cari transaksi", "Koreksi atau pulihkan pembayaran", R.drawable.ic_kasir_search) {
-                                        nav.navigate("correction")
-                                    }
-                                    SectionTitle("Pengaturan toko")
-                                    MenuPair(
-                                        MenuEntry("QRIS toko", "Pasang gambar pembayaran", R.drawable.ic_kasir_qr, "qris"),
-                                        MenuEntry("Akun dan pemulihan", "Reset kasir atau ganti kode pemulihan", R.drawable.ic_kasir_user, "access"),
-                                    ) { nav.navigate(it) }
-                                } else {
-                                    MenuItem("Buat tagihan", "Pilih barang dan metode pembayaran", R.drawable.ic_kasir_register,
-                                        featured = true) { nav.navigate("checkout") }
-                                    MenuItem("Tagihan dan nota", "Lanjutkan tagihan atau buka nota", R.drawable.ic_kasir_receipt) {
-                                        nav.navigate("history")
-                                    }
+                                MenuItem("Buat tagihan", "Pilih barang dan metode pembayaran", R.drawable.ic_kasir_register,
+                                    featured = true) { nav.navigate("checkout") }
+                                MenuPair(
+                                    MenuEntry("Tagihan dan nota", "Lanjutkan tagihan atau buka nota", R.drawable.ic_kasir_receipt, "history"),
+                                    MenuEntry("Laporan hari ini", "Lihat total dan transaksi penjualan", R.drawable.ic_kasir_report, "daily"),
+                                ) { nav.navigate(it) }
+                                MenuItem("Cari transaksi", "Koreksi atau pulihkan pembayaran", R.drawable.ic_kasir_search) {
+                                    nav.navigate("correction")
                                 }
+                                SectionTitle("Pengelolaan toko")
+                                MenuPair(
+                                    MenuEntry("Barang", "Tambah barang dan ubah harga", R.drawable.ic_kasir_box, "catalog"),
+                                    MenuEntry("Dokumen PDF", "Buat dan buka arsip laporan", R.drawable.ic_kasir_document, "documents"),
+                                ) { nav.navigate(it) }
+                                MenuPair(
+                                    MenuEntry("QRIS toko", "Pasang gambar pembayaran", R.drawable.ic_kasir_qr, "qris"),
+                                    MenuEntry("Akun dan pemulihan", "Ganti kata sandi atau kode", R.drawable.ic_kasir_user, "access"),
+                                ) { nav.navigate(it) }
                             }
                         }
-                        if (current.role == Role.ADMIN) {
-                            composable("catalog") { CatalogScreen(app, back) }
-                            composable("qris") { QrisSettingsScreen(app, back) }
-                            composable("access") { AccessSettingsScreen(app, back) }
-                            composable("daily") { DailyReportScreen(app, back) { nav.navigate("sale/$it") } }
-                            composable("correction") { SaleSearchScreen(app, back) { nav.navigate("sale/$it") } }
-                            composable("sale/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
-                                SaleCorrectionScreen(app, checkNotNull(it.arguments).getLong("id"), back)
+                        composable("catalog") { CatalogScreen(app, back) }
+                        composable("qris") { QrisSettingsScreen(app, back) }
+                        composable("access") { AccessSettingsScreen(app, back) }
+                        composable("daily") { DailyReportScreen(app, back) { nav.navigate("sale/$it") } }
+                        composable("correction") { SaleSearchScreen(app, back) { nav.navigate("sale/$it") } }
+                        composable("sale/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
+                            SaleCorrectionScreen(app, checkNotNull(it.arguments).getLong("id"), back)
+                        }
+                        composable("documents") { ReportDocumentsScreen(app, back) }
+                        composable("checkout") {
+                            CheckoutScreen(app, null, back) { nav.navigate("receipt/$it") }
+                        }
+                        composable("checkout/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
+                            CheckoutScreen(app, checkNotNull(it.arguments).getLong("id"), back) { id ->
+                                nav.navigate("receipt/$id")
                             }
-                            composable("documents") { ReportDocumentsScreen(app, back) }
-                        } else {
-                            composable("checkout") {
-                                CheckoutScreen(app, null, back) { nav.navigate("receipt/$it") }
-                            }
-                            composable("checkout/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
-                                CheckoutScreen(app, checkNotNull(it.arguments).getLong("id"), back) { id ->
-                                    nav.navigate("receipt/$id")
-                                }
-                            }
-                            composable("history") {
-                                CashierHistoryScreen(app, back, onResume = { nav.navigate("checkout/$it") },
-                                    onReceipt = { nav.navigate("receipt/$it") })
-                            }
-                            composable("receipt/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
-                                ReceiptScreen(app, checkNotNull(it.arguments).getLong("id"), back) {
-                                    nav.popBackStack("home", inclusive = false)
-                                }
+                        }
+                        composable("history") {
+                            CashierHistoryScreen(app, back, onResume = { nav.navigate("checkout/$it") },
+                                onReceipt = { nav.navigate("receipt/$it") })
+                        }
+                        composable("receipt/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
+                            ReceiptScreen(app, checkNotNull(it.arguments).getLong("id"), back) {
+                                nav.popBackStack("home", inclusive = false)
                             }
                         }
                     }

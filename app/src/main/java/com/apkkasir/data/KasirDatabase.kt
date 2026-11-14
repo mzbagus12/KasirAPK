@@ -8,7 +8,7 @@ import androidx.room.RoomDatabase
         User::class, StoreSettings::class, Product::class, Sale::class, SaleLine::class,
         SaleCorrection::class, ReportDocument::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class KasirDatabase : RoomDatabase() {

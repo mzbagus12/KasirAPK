@@ -19,8 +19,8 @@ class CheckoutUiTest {
         KasirFixture().use { fixture ->
             val app = AppContainer(fixture.context, fixture.database)
             runBlocking {
-                app.accounts.setup("pemilik", "pemilik123", "kasir", "kasir1234")
-                app.accounts.login("pemilik", "pemilik123")
+                app.accounts.setup("kasir", "kasir1234")
+                app.accounts.login("kasir", "kasir1234")
                 app.products.add("Kopi", 33_000)
                 app.session.exit()
                 app.accounts.login("kasir", "kasir1234")

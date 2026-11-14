@@ -22,7 +22,7 @@ internal class KasirFixture : Closeable {
     val database = Room.inMemoryDatabaseBuilder(target, KasirDatabase::class.java).build()
     val session = LocalSession()
     val accounts = LocalAccounts(database, session)
-    val products = ProductStore(database.products(), session)
+    val products = ProductStore(database, session)
     val images = QrisImageStore(context, database, session)
     var now = 1_794_504_600_000L
     val checkout = CheckoutService(database, session, images) { now }
@@ -30,12 +30,7 @@ internal class KasirFixture : Closeable {
     val report = SalesReport(database, session)
     fun archives() = ReportArchive(context, database.documents(), report, session)
 
-    suspend fun setup() = accounts.setup("pemilik", "pemilik123", "kasir", "kasir1234")
-
-    suspend fun admin() {
-        session.exit()
-        accounts.login("pemilik", "pemilik123")
-    }
+    suspend fun setup() = accounts.setup("kasir", "kasir1234")
 
     suspend fun cashier() {
         session.exit()
@@ -43,7 +38,7 @@ internal class KasirFixture : Closeable {
     }
 
     suspend fun item(): Long {
-        admin()
+        cashier()
         products.add("Kopi", 33_000)
         return database.products().observe().first().first().id
     }

@@ -4,7 +4,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-enum class Role { ADMIN, CASHIER }
+enum class Role { CASHIER, HISTORICAL_ADMIN }
 
 @Entity(indices = [Index(value = ["username"], unique = true), Index(value = ["role"], unique = true)])
 data class User(

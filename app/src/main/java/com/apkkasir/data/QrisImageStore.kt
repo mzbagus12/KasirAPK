@@ -19,12 +19,16 @@ class QrisImageStore(
 ) {
     private val mutex = Mutex()
 
-    suspend fun current(): File? = withContext(Dispatchers.IO) {
-        database.accounts().settings()?.qrisFile?.let { File(context.filesDir, it) }?.takeIf(File::isFile)
+    suspend fun current(): File? {
+        val actor = session.requireRole(Role.CASHIER)
+        return withContext(Dispatchers.IO) {
+            database.accounts().settings()?.qrisFile?.let { File(context.filesDir, it) }
+                ?.takeIf(File::isFile).also { session.checkActive(actor) }
+        }
     }
 
-    suspend fun save(uri: Uri): File = mutex.withLock {
-        val actor = session.requireRole(Role.ADMIN)
+    suspend fun save(uri: Uri, actor: AccountSession = session.requireRole(Role.CASHIER)): File = mutex.withLock {
+        session.checkActive(actor)
         withContext(Dispatchers.IO) {
             val file = File(context.filesDir, "qris-${UUID.randomUUID()}.image")
             val old = try {

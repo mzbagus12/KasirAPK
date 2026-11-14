@@ -24,8 +24,9 @@ class ReportArchiveTest {
             val sale = f.checkout.create(mapOf(product to 1))
             f.checkout.updateDraft(sale.id, PaymentMethod.TUNAI, 33_000)
             f.checkout.confirm(sale.id, PaymentMethod.TUNAI, 33_000)
+            f.session.exit()
             fails { f.archives().documents() }
-            f.admin()
+            f.cashier()
             val archive = f.archives()
             val first = archive.create(PeriodKind.DAILY, date)
             val folder = File(f.files, "reports")

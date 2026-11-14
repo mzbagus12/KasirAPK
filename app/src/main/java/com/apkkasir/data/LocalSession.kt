@@ -9,11 +9,26 @@ class LocalSession {
     private val current = MutableStateFlow<AccountSession?>(null)
     val account = current.asStateFlow()
 
-    internal fun enter(user: User) {
+    private var generation = 0L
+
+    @Synchronized
+    internal fun signedOutGeneration(): Long {
+        check(current.value == null) { "Keluar sebelum mengganti akses." }
+        return generation
+    }
+
+    @Synchronized
+    internal fun enter(user: User, expectedGeneration: Long) {
+        check(user.role == Role.CASHIER && current.value == null && generation == expectedGeneration) {
+            "Sesi telah berubah. Coba masuk kembali."
+        }
+        generation++
         current.value = AccountSession(user.id, user.role, user.username)
     }
 
+    @Synchronized
     fun exit() {
+        generation++
         current.value = null
     }
 

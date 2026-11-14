@@ -14,26 +14,26 @@ class SaleCorrectionService(
     private val corrections = database.corrections()
 
     suspend fun find(number: String): Sale? {
-        session.requireRole(Role.ADMIN)
-        return sales.byNumber(number.trim())
+        val actor = session.requireRole(Role.CASHIER)
+        return sales.byNumber(number.trim()).also { session.checkActive(actor) }
     }
 
     suspend fun cancelled(start: Long, end: Long): List<Sale> {
-        session.requireRole(Role.ADMIN)
-        return sales.cancelledQris(start, end)
+        val actor = session.requireRole(Role.CASHIER)
+        return sales.cancelledQris(start, end).also { session.checkActive(actor) }
     }
 
     suspend fun detail(id: Long): SaleDetail {
-        val actor = session.requireRole(Role.ADMIN)
+        val actor = session.requireRole(Role.CASHIER)
         return database.withTransaction {
             session.checkActive(actor)
             val sale = sales.get(id) ?: error("Tagihan tidak ditemukan.")
-            SaleDetail(Receipt(sale, sales.lines(id)), corrections.history(id))
+            SaleDetail(Receipt(sale, sales.lines(id)), corrections.history(id)).also { session.checkActive(actor) }
         }
     }
 
     suspend fun apply(id: Long, kind: CorrectionKind, reason: String, method: PaymentMethod? = null) {
-        val actor = session.requireRole(Role.ADMIN)
+        val actor = session.requireRole(Role.CASHIER)
         require(reason.isNotBlank()) { "Isi alasan koreksi." }
         database.withTransaction {
             session.checkActive(actor)
@@ -65,6 +65,7 @@ class SaleCorrectionService(
                     )
                 }
             }
+            session.checkActive(actor)
             sales.update(updated)
             corrections.insert(
                 SaleCorrection(
