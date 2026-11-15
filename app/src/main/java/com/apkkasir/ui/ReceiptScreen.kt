@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.apkkasir.data.AppContainer
 import com.apkkasir.data.Receipt
@@ -11,18 +13,20 @@ import com.apkkasir.payment.formatRupiah
 import com.apkkasir.reports.formatWib
 
 @Composable
-internal fun ReceiptScreen(app: AppContainer, id: Long, back: () -> Unit, home: () -> Unit) {
+internal fun ReceiptScreen(app: AppContainer, id: Long, back: () -> Unit) {
     var receipt by remember { mutableStateOf<Receipt?>(null) }
     val action = rememberAction()
     LaunchedEffect(id) { action.run { receipt = app.checkout.receipt(id) } }
     Page("Nota", back) {
-        receipt?.let { current -> ContentCard { ReceiptBody(current) } }
+        receipt?.let { current -> Column(Modifier.testTag("receipt-content")) {
+            ContentCard { ReceiptBody(current) }
+        } }
         if (action.busy) CircularProgressIndicator()
         ErrorText(action.error)
         if (action.error != null) TextButton(onClick = { action.run { receipt = app.checkout.receipt(id) } }) {
             Text("Coba lagi")
         }
-        Button(onClick = home) { Text("Selesai") }
+        Button(onClick = back) { Text("Selesai") }
     }
 }
 

@@ -3,7 +3,9 @@ package com.apkkasir
 import android.os.SystemClock
 import android.util.Log
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
@@ -49,18 +51,27 @@ class ReportPerformanceTest {
                     }
                 }
             }
+            val widgetTotal = hasText("1000 transaksi lunas") and hasAnyAncestor(hasTestTag("sales-widget"))
+            val tableTotal = hasText("1000 transaksi lunas") and hasAnyAncestor(hasTestTag("daily-report"))
+            val firstRow = hasText("NOTA-999") and hasAnyAncestor(hasTestTag("daily-report"))
+            val homeStart = SystemClock.elapsedRealtime()
             compose.setContent { KasirApp(app) }
+            compose.waitUntil(10_000) { compose.onAllNodes(widgetTotal).fetchSemanticsNodes().isNotEmpty() }
+            val homeMs = SystemClock.elapsedRealtime() - homeStart
             val button = compose.onNodeWithText("Laporan hari ini").performScrollTo()
+            val recapReady = compose.onAllNodes(widgetTotal).fetchSemanticsNodes().isNotEmpty()
             val tableStart = SystemClock.elapsedRealtime()
             button.performClick()
             compose.waitUntil(10_000) {
-                compose.onAllNodesWithText("1000 transaksi lunas").fetchSemanticsNodes().isNotEmpty()
+                compose.onAllNodes(tableTotal).fetchSemanticsNodes().isNotEmpty() &&
+                    compose.onAllNodes(firstRow).fetchSemanticsNodes().isNotEmpty()
             }
             val tableMs = SystemClock.elapsedRealtime() - tableStart
             val pdfStart = SystemClock.elapsedRealtime()
             runBlocking { app.archives.create(PeriodKind.MONTHLY, LocalDate.now(Jakarta)) }
             val pdfMs = SystemClock.elapsedRealtime() - pdfStart
-            Log.i("KasirPerformance", "1000 transaksi: tabel ${tableMs} ms, PDF ${pdfMs} ms")
+            Log.i("KasirPerformance",
+                "1000 transaksi: beranda ${homeMs} ms, rekap siap saat ketuk=$recapReady, tabel ${tableMs} ms, PDF ${pdfMs} ms")
             assertTrue("Tabel: ${tableMs} ms", tableMs <= 2_000)
             assertTrue("PDF: ${pdfMs} ms", pdfMs <= 10_000)
         }

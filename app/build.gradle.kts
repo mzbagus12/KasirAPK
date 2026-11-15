@@ -5,6 +5,11 @@ plugins {
     alias(libs.plugins.kotlin.kapt)
 }
 
+val signingPath = providers.environmentVariable("KASIR_KEYSTORE")
+val signingAlias = providers.environmentVariable("KASIR_KEY_ALIAS")
+val signingStorePassword = providers.environmentVariable("KASIR_STORE_PASSWORD")
+val signingKeyPassword = providers.environmentVariable("KASIR_KEY_PASSWORD")
+
 android {
     namespace = "com.apkkasir"
     compileSdk = 36
@@ -13,9 +18,22 @@ android {
         applicationId = "com.apkkasir"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.5.0"
+        versionCode = 4
+        versionName = "2.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    if (signingPath.isPresent) {
+        signingConfigs.create("kasirRelease") {
+            storeFile = file(signingPath.get())
+            keyAlias = signingAlias.get()
+            storePassword = signingStorePassword.get()
+            keyPassword = signingKeyPassword.get()
+        }
+    }
+    buildTypes.named("release") {
+        isDebuggable = false
+        signingConfigs.findByName("kasirRelease")?.let { signingConfig = it }
     }
 
     buildFeatures { compose = true }

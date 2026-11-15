@@ -1,0 +1,11 @@
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/kasir_widget_description"
+    android:initialLayout="@layout/kasir_home_widget"
+    android:minHeight="48dp"
+    android:minWidth="110dp"
+    android:previewLayout="@layout/kasir_home_widget"
+    android:previewImage="@drawable/ic_kasir_register"
+    android:targetCellHeight="1"
+    android:targetCellWidth="2"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

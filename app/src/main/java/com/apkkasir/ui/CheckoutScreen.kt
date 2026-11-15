@@ -19,6 +19,8 @@ import com.apkkasir.payment.subtotal
 import com.apkkasir.payment.totalRupiah
 import com.apkkasir.reports.formatWib
 import java.io.File
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
 
 @Composable
 internal fun CheckoutScreen(app: AppContainer, id: Long?, back: () -> Unit, onReceipt: (Long) -> Unit) {
@@ -141,12 +143,44 @@ private fun CartScreen(app: AppContainer, model: CheckoutViewModel, back: () -> 
     }
 }
 
+internal enum class HistoryFilter(val title: String, val emptyMessage: String) {
+    ALL("Riwayat transaksi", "Belum ada tagihan."),
+    PENDING("Tagihan menunggu", "Belum ada tagihan menunggu."),
+    RECEIPTS("Daftar nota", "Belum ada nota."),
+}
+
 @Composable
-internal fun CashierHistoryScreen(app: AppContainer, back: () -> Unit, onResume: (Long) -> Unit, onReceipt: (Long) -> Unit) {
-    val history = remember(app) { app.checkout.history() }
-    val sales by history.collectAsState(emptyList())
-    Page("Tagihan dan nota", back) {
-        if (sales.isEmpty()) Text("Belum ada tagihan.")
+internal fun CashierHistoryScreen(
+    app: AppContainer,
+    filter: HistoryFilter,
+    back: (() -> Unit)?,
+    onSearch: () -> Unit,
+    onResume: (Long) -> Unit,
+    onReceipt: (Long) -> Unit,
+) {
+    var failed by remember { mutableStateOf(false) }
+    var attempt by remember { mutableIntStateOf(0) }
+    val history = remember(app, attempt) {
+        flow { app.checkout.history().collect { emit(it) } }.catch { failed = true }
+    }
+    val stored = key(attempt) { history.collectAsState(null).value }
+    Page(filter.title, back) {
+        OutlinedButton(onClick = onSearch) { Text("Cari transaksi") }
+        if (failed) {
+            ErrorText("Riwayat gagal dimuat.")
+            TextButton(onClick = { failed = false; attempt++ }) { Text("Coba lagi") }
+            return@Page
+        }
+        if (stored == null) {
+            Text("Memuat riwayat…")
+            return@Page
+        }
+        val sales = when (filter) {
+            HistoryFilter.ALL -> stored
+            HistoryFilter.PENDING -> stored.filter { it.status == SaleStatus.MENUNGGU }
+            HistoryFilter.RECEIPTS -> stored.filter { it.receiptNumber != null }
+        }
+        if (sales.isEmpty()) Text(filter.emptyMessage)
         sales.forEach { sale ->
             ListItem(
                 headlineContent = { Text(sale.receiptNumber ?: sale.billNumber) },

@@ -7,43 +7,39 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.apkkasir.data.AppContainer
 import com.apkkasir.data.Sale
 import com.apkkasir.payment.formatRupiah
-import com.apkkasir.reports.*
-import java.time.LocalDate
-import kotlinx.coroutines.delay
+import com.apkkasir.reports.formatWib
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun DailyReportScreen(app: AppContainer, back: () -> Unit, detail: (Long) -> Unit) {
-    val date by produceState(LocalDate.now(Jakarta)) {
-        while (true) {
-            value = LocalDate.now(Jakarta)
-            val end = ReportPeriod.of(PeriodKind.DAILY, value).endMillis
-            delay((end - System.currentTimeMillis()).coerceIn(1L, 30_000L))
-        }
-    }
-    val source = remember(app, date) { app.reports.observe(ReportPeriod.of(PeriodKind.DAILY, date)) }
-    val snapshot = key(date) { source.collectAsState(null).value }
+internal fun DailyReportScreen(state: DailyReportState, documents: () -> Unit, detail: (Long) -> Unit) {
+    val data = (state as? DailyReportState.Ready)?.report
     Scaffold(containerColor = MaterialTheme.colorScheme.background,
-        topBar = { KasirToolbar("Laporan hari ini", back) }) { insets ->
+        topBar = { KasirToolbar("Laporan hari ini", null) }) { insets ->
         Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.TopCenter) {
             LazyColumn(
-                Modifier.widthIn(max = 640.dp).fillMaxSize(),
+                Modifier.widthIn(max = 640.dp).fillMaxSize().testTag("daily-report"),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                item { OutlinedButton(onClick = documents) { Text("Dokumen PDF") } }
                 item {
-                    val data = snapshot
-                    if (data == null) CircularProgressIndicator()
-                    else {
-                        SummaryCard("Penjualan · $date WIB", formatRupiah(data.total), "${data.count} transaksi lunas")
-                        if (data.rows.isEmpty()) Text("Belum ada penjualan hari ini.", Modifier.padding(top = 12.dp))
+                    when (state) {
+                        DailyReportState.Loading -> Text("Memuat laporan…")
+                        DailyReportState.Failed -> ErrorText("Laporan gagal dimuat. Buka kembali Laporan untuk mencoba lagi.")
+                        is DailyReportState.Ready -> {
+                            SummaryCard("Penjualan · ${state.date} WIB", formatRupiah(state.report.total),
+                                "${state.report.count} transaksi lunas")
+                            if (state.report.rows.isEmpty()) {
+                                Text("Belum ada penjualan hari ini.", Modifier.padding(top = 12.dp))
+                            }
+                        }
                     }
                 }
-                items(snapshot?.rows.orEmpty(), key = { it.id }) { sale -> SaleListItem(sale) { detail(sale.id) } }
+                items(data?.rows.orEmpty(), key = { it.id }) { sale -> SaleListItem(sale) { detail(sale.id) } }
             }
         }
     }

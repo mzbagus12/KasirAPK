@@ -47,8 +47,10 @@ class CheckoutUiTest {
                 compose.onAllNodes(hasText("Konfirmasi") and isEnabled()).fetchSemanticsNodes().isNotEmpty()
             }
             click("Konfirmasi")
-            awaitText("Kembalian Rp7.000")
-            awaitText("Nota")
+            compose.waitUntil(10_000) {
+                compose.onAllNodes(hasText("Kembalian Rp7.000") and hasAnyAncestor(hasTestTag("receipt-content")))
+                    .fetchSemanticsNodes().isNotEmpty()
+            }
             assertEquals(1, runBlocking {
                 fixture.database.sales().within(Long.MIN_VALUE, Long.MAX_VALUE).size
             })
