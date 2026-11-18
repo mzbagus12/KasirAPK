@@ -16,12 +16,32 @@ Kasir Toko adalah aplikasi kasir Android untuk toko kecil dengan satu perangkat 
 3. Pada pemasangan baru, buat akun kasir dan simpan kode pemulihan di tempat yang aman.
 4. Tambahkan barang dan harga, lalu pasang gambar QRIS toko jika menerima pembayaran QRIS.
 
-## Pengembangan
+## Tech stack
 
-Aplikasi ditulis dengan Kotlin dan menggunakan Jetpack Compose untuk antarmuka serta Room untuk penyimpanan lokal. Siapkan JDK 17 dan Android SDK Platform 36, lalu buka proyek di Android Studio. Untuk membangun APK debug dan menjalankan unit test dari PowerShell:
+| Teknologi | Peran di Kasir Toko |
+| --- | --- |
+| Kotlin 2.2.21 | Bahasa utama untuk alur tagihan, pembayaran, akun kasir, dan laporan. |
+| Jetpack Compose dan Material 3 | Komponen antarmuka untuk layar kasir, katalog, pembayaran, dan laporan. |
+| Navigation Compose dan AndroidX ViewModel | Navigasi antarhalaman dan pengelolaan state, termasuk saat kasir mengisi pembayaran. |
+| Room 2.8.4 (SQLite) | Penyimpanan lokal untuk akun, katalog, transaksi, riwayat koreksi, dan metadata arsip laporan. |
+| Android `PdfDocument` dan Storage Access Framework | Pembuatan PDF di perangkat dan pemilihan lokasi penyimpanan saat kasir mengekspor laporan. |
+| Gradle 8.13 dan Android Gradle Plugin 8.13.1 | Build melalui Gradle Wrapper, pengemasan APK, dan pemeriksaan lint. |
+| JUnit 4 dan Compose UI Test | Pengujian logika di JVM dan pengujian alur aplikasi di perangkat atau emulator. |
+
+Konfigurasi versi dan dependensi tersedia di [katalog versi Gradle](gradle/libs.versions.toml) dan [konfigurasi modul Android](app/build.gradle.kts).
+
+## Pengembangan lokal
+
+Siapkan JDK 17 dan Android SDK Platform 36, lalu buka proyek di Android Studio. Jalankan perintah berikut dari root repositori untuk membangun APK debug dan menjalankan unit test.
 
 ```powershell
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest
 ```
 
-APK debug tersedia di `app/build/outputs/apk/debug/`.
+APK debug tersedia di `app/build/outputs/apk/debug/app-debug.apk`.
+
+Sambungkan perangkat Android atau nyalakan emulator untuk menjalankan uji instrumentasi.
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest
+```
